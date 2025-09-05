@@ -1,33 +1,138 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>CVE List</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <meta charset="UTF-8">
+  <title>CVE Table with Pagination</title>
+  <style>
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 1em;
+    }
+
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+    }
+
+    #paginationControls {
+      margin-top: 1em;
+    }
+  </style>
 </head>
 <body>
-    <h2>CVE List</h2>
+  <h2>CVE List</h2>
+  <label for="perPage">Results per page: </label>
+  <select id="perPage">
+    <option value="5">5</option>
+    <option value="10" selected>10</option>
+    <option value="25">25</option>
+    <option value="50">50</option>
+  </select>
 
-    <label for="perPage">Results per page:</label>
-    <select id="perPage" onchange="loadCVEs()">
-        <option value="10">10</option>
-        <option value="50">50</option>
-        <option value="100">100</option>
-    </select>
+  <div id="totalRecords"></div>
 
-    <p id="totalRecords"></p>
+  <table id="cveTable">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Published</th>
+        <th>Last Modified</th>
+        <th>CVSS Score</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Populated by JS -->
+    </tbody>
+  </table>
 
-    <table id="cveTable">
-        <thead>
-            <tr>
-                <th>CVE ID</th>
-                <th>Published</th>
-                <th>Last Modified</th>
-                <th>Score</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
+  <div id="paginationControls">
+    <button id="prevPage">Previous</button>
+    <span id="pageInfo"></span>
+    <button id="nextPage">Next</button>
+  </div>
 
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
+  <script>
+    let cveData = [];
+    let currentPage = 1;
+
+    async function fetchCVEs() {
+      const response = await fetch('/api/cves');
+      if (!response.ok) throw new Error('Cannot fetch CVEs');
+      cveData = await response.json();
+    }
+
+    function renderTable() {
+      const perPage = parseInt(document.getElementById("perPage").value, 10) || 10;
+      const tbody = document.querySelector("#cveTable tbody");
+      tbody.innerHTML = "";
+
+      const start = (currentPage - 1) * perPage;
+      const end = start + perPage;
+      const pageData = cveData.slice(start, end);
+
+      pageData.forEach(cve => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td><a href="/cves/${cve.id}">${cve.id}</a></td>
+          <td>${cve.published}</td>
+          <td>${cve.lastModified}</td>
+          <td>${cve.cvss_score || ''}</td>
+        `;
+        tbody.appendChild(row);
+      });
+
+      document.getElementById("totalRecords").innerText =
+        "Total Records: " + cveData.length;
+
+      // Update pagination info
+      const totalPages = Math.ceil(cveData.length / perPage) || 1;
+      document.getElementById('pageInfo').innerText =
+        `Page ${currentPage} of ${totalPages}`;
+
+      document.getElementById('prevPage').disabled = currentPage <= 1;
+      document.getElementById('nextPage').disabled = currentPage >= totalPages;
+    }
+
+    async function loadCVEs() {
+      if (cveData.length === 0) {
+        try {
+          await fetchCVEs();
+        } catch (err) {
+          document.getElementById("totalRecords").innerText =
+            "Failed to load CVEs";
+          console.error(err);
+          return;
+        }
+      }
+      renderTable();
+    }
+
+    // Pagination controls
+    document.getElementById('prevPage').addEventListener('click', () => {
+      if (currentPage > 1) {
+        currentPage--;
+        renderTable();
+      }
+    });
+
+    document.getElementById('nextPage').addEventListener('click', () => {
+      const perPage = parseInt(document.getElementById("perPage").value, 10) || 10;
+      const totalPages = Math.ceil(cveData.length / perPage) || 1;
+
+      if (currentPage < totalPages) {
+        currentPage++;
+        renderTable();
+      }
+    });
+
+    // Per page change
+    document.getElementById("perPage").addEventListener("change", () => {
+      currentPage = 1; // Reset back to first page
+      renderTable();
+    });
+
+    window.onload = loadCVEs;
+  </script>
 </body>
 </html>
