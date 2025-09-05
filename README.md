@@ -1,4 +1,4 @@
-# CVE Management & Mitigation System
+# NVD-CVE_API
 
 This project provides a **Flask-based web application** to fetch, store, and analyze CVE (Common Vulnerabilities and Exposures) data from the [NVD API](https://nvd.nist.gov/developers).  
 
@@ -79,14 +79,5 @@ Tests run automatically in **GitHub Actions CI/CD pipeline**.
 
 ## API Documentation
 Detailed API reference can be found here: [API_Documentation.md](API_Documentation.md)
-
----
-
-## AI-Powered Mitigations
-- SQL Injection → Use parameterized queries, ORM frameworks, and input validation.  
-- Cross-Site Scripting (XSS) → Encode outputs, apply CSP, sanitize inputs.  
-- Buffer Overflow → Apply vendor patches, enable DEP/ASLR, use memory-safe languages.  
-
-Mitigation suggestions are **automatically added** to CVE responses.
 
 ---
