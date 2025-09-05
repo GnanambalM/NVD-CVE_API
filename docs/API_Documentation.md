@@ -1,4 +1,4 @@
-# CVE Management API – Documentation
+# NVD-CVE_API – Documentation
 
 This API provides access to CVE (Common Vulnerabilities and Exposures) data synchronized from the [NVD API](https://nvd.nist.gov/developers).  
 It supports filtering, validation, sorting, and mitigation suggestions.
