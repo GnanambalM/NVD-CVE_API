@@ -2,43 +2,150 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>CVE Table with Pagination</title>
+  <title>CVE List</title>
   <style>
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #fff;
+      margin: 0;
+      padding: 0;
+    }
+
+    h2 {
+      text-align: center;
+      font-size: 2em;
+      font-weight: 700;
+      margin-top: 2em;
+      margin-bottom: 0.5em;
+      letter-spacing: 1px;
+    }
+
+    #totalRecords {
+      font-weight: bold;
+      margin-left: 4%;
+      margin-bottom: 1em;
+      font-size: 1em;
+    }
+
     table {
       border-collapse: collapse;
-      width: 100%;
-      margin-top: 1em;
+      width: 92%;
+      margin: 0 auto 0.5em auto;
+      background: #fff;
+      font-size: 1em;
     }
 
     th, td {
-      border: 1px solid #ccc;
-      padding: 8px;
+      border: 1px solid #ececec;
+      padding: 13px 12px;
+      text-align: left;
+    }
+
+    th {
+      background: #eee;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      font-size: 1.05em;
+    }
+
+    td {
+      background: #fff;
+      font-weight: 400;
+      color: #222;
+    }
+
+    #bottomBar {
+      width: 92%;
+      margin: auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    #perPageContainer {
+      font-size: 0.95em;
+      margin-right: 1em;
+      user-select: none;
+    }
+
+    #perPage {
+      font-size: 1em;
+      padding: 3px 6px;
+      margin-left: 4px;
+      margin-top: 0.5em;
+      border: 1px solid #bbb;
+      border-radius: 2px;
+      background: #fff;
+      outline: none;
+      cursor: pointer;
     }
 
     #paginationControls {
-      margin-top: 1em;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .page-btn,
+    .arrow-btn {
+      border: none;
+      background: #eaeaea;
+      color: #222;
+      padding: 5px 13px;
+      margin: 0 1px;
+      border-radius: 3px;
+      font-size: 1em;
+      cursor: pointer;
+      min-width: 32px;
+      font-weight: 500;
+      box-shadow: 0 0.5px 0.5px #eee;
+      transition: background 0.18s;
+    }
+
+    .page-btn.active {
+      background: #222 !important;
+      color: #fff !important;
+    }
+
+    .page-btn:disabled,
+    .arrow-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    #pageRange {
+      font-size: 0.97em;
+      margin-left: 1.7em;
+      font-weight: 400;
+      color: #666;
+      min-width: 170px;
+      text-align: right;
+    }
+
+    @media (max-width: 900px) {
+      table,
+      #bottomBar {
+        width: 99%;
+      }
+
+      #totalRecords {
+        margin-left: 1%;
+      }
     }
   </style>
 </head>
 <body>
-  <h2><center>CVE List</center></h2>
-  <label for="perPage">Results per page: </label>
-  <select id="perPage">
-    <option value="5">5</option>
-    <option value="10" selected>10</option>
-    <option value="25">25</option>
-    <option value="50">50</option>
-  </select>
-
+  <h2>CVE LIST</h2>
   <div id="totalRecords"></div>
 
   <table id="cveTable">
     <thead>
       <tr>
-        <th>ID</th>
-        <th>Published</th>
-        <th>Last Modified</th>
-        <th>CVSS Score</th>
+        <th>CVE ID</th>
+        <th>IDENTIFIER</th>
+        <th>PUBLISHED DATE</th>
+        <th>LAST MODIFIED DATE</th>
+        <th>STATUS</th>
       </tr>
     </thead>
     <tbody>
@@ -46,52 +153,129 @@
     </tbody>
   </table>
 
-  <div id="paginationControls">
-    <button id="prevPage">Previous</button>
-    <span id="pageInfo"></span>
-    <button id="nextPage">Next</button>
+  <div id="bottomBar">
+    <div id="perPageContainer">
+      Results per page:
+      <select id="perPage">
+        <option value="5">5</option>
+        <option value="10" selected>10</option>
+        <option value="25">25</option>
+        <option value="50">50</option>
+      </select>
+    </div>
+
+    <div id="paginationControls">
+      <!-- Arrow/page buttons populated by JS -->
+    </div>
+
+    <div id="pageRange"></div>
   </div>
 
   <script>
     let cveData = [];
     let currentPage = 1;
+    let totalPages = 1;
 
+    // Sample fetch (replace with real API)
     async function fetchCVEs() {
+      // Replace '/api/cves' with your actual API endpoint
       const response = await fetch('/api/cves');
       if (!response.ok) throw new Error('Cannot fetch CVEs');
       cveData = await response.json();
     }
 
+    function formatDate(dateStr) {
+      if (!dateStr) return '';
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return dateStr;
+
+      const day = date.getDate().toString().padStart(2, '0');
+      const month = date.toLocaleString('en-US', { month: 'short' });
+      const year = date.getFullYear().toString();
+
+      return `${day} ${month} ${year}`;
+    }
+
     function renderTable() {
       const perPage = parseInt(document.getElementById("perPage").value, 10) || 10;
+      totalPages = Math.ceil(cveData.length / perPage) || 1;
+
       const tbody = document.querySelector("#cveTable tbody");
       tbody.innerHTML = "";
 
       const start = (currentPage - 1) * perPage;
-      const end = start + perPage;
+      const end = Math.min(start + perPage, cveData.length);
       const pageData = cveData.slice(start, end);
 
       pageData.forEach(cve => {
         const row = document.createElement("tr");
         row.innerHTML = `
-          <td><a href="/cves/${cve.id}">${cve.id}</a></td>
-          <td>${cve.published}</td>
-          <td>${cve.lastModified}</td>
-          <td>${cve.cvss_score || ''}</td>
+          <td><a href="/cves/${cve.id}" style="color:#222;text-decoration:underline;">${cve.id}</a></td>
+          <td>${cve.identifier || 'cve@mitre.org'}</td>
+          <td>${formatDate(cve.published)}</td>
+          <td>${formatDate(cve.lastModified)}</td>
+          <td>${cve.status || ''}</td>
         `;
         tbody.appendChild(row);
       });
 
       document.getElementById("totalRecords").innerText =
-        "Total Records: " + cveData.length;
+        `Total Records: ${cveData.length}`;
 
-      // Update pagination info
-      const totalPages = Math.ceil(cveData.length / perPage) || 1;
-      document.getElementById('pageInfo').innerText =
-        `Page ${currentPage} of ${totalPages}`;
+      renderPagination(perPage, start, end);
+    }
 
-      document.getElementById('prevPage').disabled = currentPage <= 1;
-      document.getElementById('nextPage').disabled = currentPage >= totalPages;
+    function renderPagination(perPage, start, end) {
+      const controls = document.getElementById('paginationControls');
+      controls.innerHTML = '';
+      totalPages = Math.ceil(cveData.length / perPage) || 1;
+
+      const maxPageDisplay = 5; // Show up to 5 numbered buttons
+
+      // Left arrow
+      const leftBtn = document.createElement('button');
+      leftBtn.className = 'arrow-btn';
+      leftBtn.innerHTML = '&#9664;';
+      leftBtn.disabled = currentPage === 1;
+      leftBtn.onclick = function () {
+        if (currentPage > 1) currentPage--;
+        renderTable();
+      };
+      controls.appendChild(leftBtn);
+
+      // Page number buttons
+      let startPage = Math.max(currentPage - 2, 1);
+      let endPage = Math.min(startPage + maxPageDisplay - 1, totalPages);
+      if (endPage - startPage < maxPageDisplay - 1) {
+        startPage = Math.max(endPage - maxPageDisplay + 1, 1);
+      }
+
+      for (let i = startPage; i <= endPage; i++) {
+        const pageBtn = document.createElement('button');
+        pageBtn.className = 'page-btn' + (i === currentPage ? ' active' : '');
+        pageBtn.innerText = i;
+        pageBtn.disabled = (i === currentPage);
+        pageBtn.onclick = function () {
+          currentPage = i;
+          renderTable();
+        };
+        controls.appendChild(pageBtn);
+      }
+
+      // Right arrow
+      const rightBtn = document.createElement('button');
+      rightBtn.className = 'arrow-btn';
+      rightBtn.innerHTML = '&#9654;';
+      rightBtn.disabled = currentPage === totalPages;
+      rightBtn.onclick = function () {
+        if (currentPage < totalPages) currentPage++;
+        renderTable();
+      };
+      controls.appendChild(rightBtn);
+
+      // Record range info
+      const pageRange = document.getElementById("pageRange");
+      pageRange.innerText = `${start + 1}-${end} of ${cveData.length} records`;
     }
 
     async function loadCVEs() {
@@ -99,8 +283,7 @@
         try {
           await fetchCVEs();
         } catch (err) {
-          document.getElementById("totalRecords").innerText =
-            "Failed to load CVEs";
+          document.getElementById("totalRecords").innerText = "Failed to load CVEs";
           console.error(err);
           return;
         }
@@ -108,27 +291,8 @@
       renderTable();
     }
 
-    // Pagination controls
-    document.getElementById('prevPage').addEventListener('click', () => {
-      if (currentPage > 1) {
-        currentPage--;
-        renderTable();
-      }
-    });
-
-    document.getElementById('nextPage').addEventListener('click', () => {
-      const perPage = parseInt(document.getElementById("perPage").value, 10) || 10;
-      const totalPages = Math.ceil(cveData.length / perPage) || 1;
-
-      if (currentPage < totalPages) {
-        currentPage++;
-        renderTable();
-      }
-    });
-
-    // Per page change
     document.getElementById("perPage").addEventListener("change", () => {
-      currentPage = 1; // Reset back to first page
+      currentPage = 1;
       renderTable();
     });
 
