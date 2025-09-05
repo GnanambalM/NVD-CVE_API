@@ -10,7 +10,7 @@ app = Flask(__name__)
 DB_NAME = "cves.db"
 NVD_API = "https://services.nvd.nist.gov/rest/json/cves/2.0"
 
-# ---------------------- DB SETUP ----------------------
+# DB Setup
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
@@ -26,7 +26,7 @@ def init_db():
     conn.commit()
     conn.close()
 
-# ---------------------- SYNC DATA ----------------------
+# Sync Data
 def fetch_and_store_cves():
     start_index = 0
     results_per_page = 100
@@ -69,17 +69,35 @@ def fetch_and_store_cves():
         conn.commit()
         conn.close()
         start_index += results_per_page
-        # Limit for demo (remove to fetch all)
-        if start_index > 200:
-            break
 
 # Run sync in background
-def periodic_sync(interval=86400):  # default: 24 hrs
+def periodic_sync(interval=86400):
     while True:
         fetch_and_store_cves()
         time.sleep(interval)
 
-# ---------------------- API ENDPOINTS ----------------------
+# Mitigation Suggestion
+def suggest_mitigation(description, score):
+    desc = (description or "").lower()
+    # Rule-based patterns
+    if "sql injection" in desc:
+        return "Use parameterized queries, ORM frameworks, and strict input validation."
+    elif "buffer overflow" in desc:
+        return "Apply vendor patches, enable DEP/ASLR, and use memory-safe languages/libraries."
+    elif "xss" in desc or "cross-site scripting" in desc:
+        return "Sanitize user inputs, encode outputs, and apply CSP headers."
+    elif "privilege escalation" in desc:
+        return "Update OS/software, enforce least privilege, and monitor logs."
+    elif "dos" in desc or "denial of service" in desc:
+        return "Rate limit requests, use WAF, and monitor traffic anomalies."
+    elif "rce" in desc or "remote code execution" in desc:
+        return "Patch immediately, restrict remote access, and apply network segmentation."
+    elif score and score >= 7:
+        return "Apply patches immediately, restrict exposure, and monitor advisories."
+    else:
+        return "Review vendor advisories and apply patches when available."
+
+# API Endpoints
 @app.route("/api/cves", methods=["GET"])
 def get_cves():
     year = request.args.get("year")
@@ -106,6 +124,15 @@ def get_cves():
             return jsonify({"error": "Score must be a number"}), 400
         query += " AND cvss_score >= ?"
         params.append(score)
+    sort = request.args.get("sort")
+    valid_sorts = {
+        "published_asc": "published ASC",
+        "published_desc": "published DESC",
+        "modified_asc": "lastModified ASC",
+        "modified_desc": "lastModified DESC"
+    }
+    if sort in valid_sorts:
+        query += f" ORDER BY {valid_sorts[sort]}"
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute(query, params)
@@ -116,7 +143,8 @@ def get_cves():
         "published": r[1],
         "lastModified": r[2],
         "description": r[3],
-        "cvss_score": r[4]
+        "cvss_score": r[4],
+        "mitigation": suggest_mitigation(r[3], r[4])
     } for r in rows]
     return jsonify(results)
 
@@ -128,8 +156,7 @@ def cves_list():
 def cve_details(cve_id):
     return render_template("details.html", cve_id=cve_id)
 
-
-# ---------------------- MAIN ----------------------
+# Main
 if __name__ == "__main__":
     init_db()
     threading.Thread(target=periodic_sync, daemon=True).start()
