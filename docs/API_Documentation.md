@@ -12,7 +12,7 @@ http://127.0.0.1:5000/api
 
 ---
 
-## 📂 Endpoints
+## Endpoints
 
 ### 1. Get All CVEs
 **Request:**
