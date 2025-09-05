@@ -33,77 +33,29 @@ GET /api/cves
   }
 ]
 
-2. Filter by Year
-
-Request:
+**### 2. Filter by year**
+**Request:**
 
 GET /api/cves?year=2023
 
-Response: Returns CVEs published in 2023.
+**Response:** Returns CVEs published in 2023.
 
-3. Filter by CVE ID
-
-Request:
+**### 3. Filter by CVE ID**
+**Request:**
 
 GET /api/cves?id=CVE-2023-12345
 
+**Response:** Returns details of the given CVE ID.
 
-Response: Returns details of the given CVE ID.
-
-4. Filter by Score
-
-Request:
+**### 4. Filter by Score**
+**Request:**
 
 GET /api/cves?score=7
 
-
 Response: Returns CVEs with CVSS score ≥ 7.0.
 
-5. Sorting (Server-side)
-
-Request:
+**### 5. Sorting (Server-side)**
+**Request:**
 
 GET /api/cves?sort=published_desc
-
-
-Valid Values:
-
-published_asc
-
-published_desc
-
-modified_asc
-
-modified_desc
-
-⚠️ Error Handling
-
-Invalid inputs return a 400 Bad Request with error messages.
-
-Examples:
-
-/api/cves?year=abcd
-
-{"error": "Invalid year. Must be between 1999 and current year."}
-
-
-/api/cves?score=abc
-
-{"error": "Score must be a number"}
-
-
-/api/cves?id=BADID
-
-{"error": "Invalid CVE ID format. Expected CVE-YYYY-NNNN"}
-
-🛡️ Data Quality
-
-Data is fetched in batches from NVD.
-
-Deduplication ensured via PRIMARY KEY (CVE ID).
-
-Dates normalized to YYYY-MM-DD.
-
-Scores validated to 0–10.
-
 Mitigation strategies automatically suggested.
