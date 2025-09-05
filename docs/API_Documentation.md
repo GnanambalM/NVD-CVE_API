@@ -1,16 +1,16 @@
-# 📌 CVE Management API – Documentation
+# CVE Management API – Documentation
 
 This API provides access to CVE (Common Vulnerabilities and Exposures) data synchronized from the [NVD API](https://nvd.nist.gov/developers).  
 It supports filtering, validation, sorting, and mitigation suggestions.
 
 ---
 
-## 🔑 Base URL
+## Base URL
 `http://127.0.0.1:5000/api`
 
 ---
 
-## 📂 Endpoints
+## Endpoints
 
 ### 1. Get All CVEs
 **Request**
@@ -84,7 +84,7 @@ Returns CVEs sorted based on the requested order.
 
 ---
 
-## ⚠️ Error Handling
+## Error Handling
 Invalid inputs return a **400 Bad Request** with descriptive error messages.
 
 **Examples**
@@ -117,27 +117,3 @@ GET /api/cves?id=BADID
 ```
 
 ---
-
-## 🛡️ Data Quality & Sync
-- Data is fetched in **batches** from NVD API.  
-- Deduplication is ensured via **PRIMARY KEY (CVE ID)**.  
-- Dates are normalized to `YYYY-MM-DD`.  
-- Scores validated between `0–10`.  
-- CVEs refreshed **periodically** (default: every 24 hours).  
-
----
-
-## 🔮 AI-Powered Mitigation
-Each CVE includes a **mitigation field** with recommended remediation strategies.  
-- Rule-based logic matches common vulnerability patterns (SQLi, XSS, RCE, etc).  
-- Extensible to use AI/ML models for intelligent suggestions.
-
-**Example**
-```json
-{
-  "id": "CVE-2023-56789",
-  "description": "Buffer overflow in ...",
-  "cvss_score": 8.5,
-  "mitigation": "Apply vendor patches, enable DEP/ASLR, and use memory-safe libraries."
-}
-```
