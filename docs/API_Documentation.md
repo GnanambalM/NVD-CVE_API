@@ -33,29 +33,9 @@ GET /api/cves
   }
 ]
 
-**### 2. Filter by year**
-**Request:**
+2. Filter by Year
 
+Request:
 GET /api/cves?year=2023
-
-**Response:** Returns CVEs published in 2023.
-
-**### 3. Filter by CVE ID**
-**Request:**
-
-GET /api/cves?id=CVE-2023-12345
-
-**Response:** Returns details of the given CVE ID.
-
-**### 4. Filter by Score**
-**Request:**
-
-GET /api/cves?score=7
-
-Response: Returns CVEs with CVSS score ≥ 7.0.
-
-**### 5. Sorting (Server-side)**
-**Request:**
-
-GET /api/cves?sort=published_desc
+Response: Returns CVEs published in 2023.
 Mitigation strategies automatically suggested.
