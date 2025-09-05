@@ -32,10 +32,3 @@ GET /api/cves
     "mitigation": "Use parameterized queries, ORM frameworks, and strict input validation."
   }
 ]
-
-2. Filter by Year
-
-Request:
-GET /api/cves?year=2023
-Response: Returns CVEs published in 2023.
-Mitigation strategies automatically suggested.
