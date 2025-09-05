@@ -33,25 +33,30 @@ GET /api/cves
   }
 ]
 
-📌 CVE Management API – Documentation
+# 📌 CVE Management API – Documentation
 
-This API provides access to CVE (Common Vulnerabilities and Exposures) data synchronized from the NVD API
-.
+This API provides access to CVE (Common Vulnerabilities and Exposures) data synchronized from the [NVD API](https://nvd.nist.gov/developers).  
 It supports filtering, validation, sorting, and mitigation suggestions.
 
-🔑 Base URL
+---
+
+## 🔑 Base URL
 http://127.0.0.1:5000/api
 
-📂 Endpoints
-1. Get All CVEs
 
-Request
+---
+
+## 📂 Endpoints
+
+### 1. Get All CVEs
+**Request**
+
 
 GET /api/cves
 
 
-Response
-
+**Response**
+```json
 [
   {
     "id": "CVE-2023-12345",
