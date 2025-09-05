@@ -24,6 +24,32 @@ class CVEApiTestCase(unittest.TestCase):
         response = self.app.get('/api/cves?score=7')
         self.assertEqual(response.status_code, 200)
 
+    def test_filter_by_valid_cve_id(self):
+        """Test filtering by a valid CVE ID"""
+        # Replace with a known CVE ID in your DB after sync
+        response = self.app.get('/api/cves?id=CVE-1999-0095')
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(len(response.get_json()) > 0)
+
+    def test_mitigation_field_present(self):
+        """Ensure mitigation advice is included"""
+        response = self.app.get('/api/cves')
+        self.assertEqual(response.status_code, 200)
+        for cve in response.get_json():
+            self.assertIn("mitigation", cve)
+
+    def test_html_list_route(self):
+        """Test /cves/list renders HTML"""
+        response = self.app.get('/cves/list')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"<table", response.data)
+
+def test_html_details_route(self):
+        """Test /cves/<cve_id> renders HTML"""
+        response = self.app.get('/cves/CVE-1999-0095')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"CVE-1999-0095", response.data)
+
     # ---------------------- INVALID CASES ----------------------
     def test_invalid_year(self):
         """Test invalid year input"""
