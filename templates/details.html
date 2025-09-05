@@ -1,41 +1,213 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>CVE Details</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .cve-details { border: 1px solid #ddd; padding: 15px; border-radius: 8px; background: #f9f9f9; }
-        .cve-details p { margin: 8px 0; }
-        .cve-details b { color: #333; }
-    </style>
+  <title>CVE Details</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      margin: 32px;
+      background: #fff;
+      color: #101010;
+    }
+
+    h2 {
+      font-size: 1.8em;
+      margin-bottom: 0.2em;
+      margin-top: 0.5em;
+      font-weight: bold;
+      letter-spacing: 0.5px;
+    }
+
+    .desc-title {
+      font-size: 1.12em;
+      font-weight: 600;
+      margin-top: 22px;
+      margin-bottom: 8px;
+    }
+
+    .desc-content {
+      margin-bottom: 22px;
+      font-size: 1em;
+      line-height: 1.6;
+    }
+
+    .section-title {
+      font-size: 1.05em;
+      font-weight: 600;
+      margin-bottom: 7px;
+      margin-top: 25px;
+    }
+
+    .metrics-details,
+    .scores-details {
+      margin-bottom: 18px;
+      margin-top: 2px;
+    }
+
+    .metrics-details span,
+    .scores-details span {
+      margin-right: 22px;
+      font-size: 1em;
+    }
+
+    .vector-string {
+      font-size: 1em;
+      margin-bottom: 15px;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-bottom: 20px;
+      background: #fff;
+    }
+
+    th, td {
+      border: 1px solid #e3e3e3;
+      padding: 8px 11px;
+      font-size: 1em;
+      text-align: center;
+      font-weight: 400;
+    }
+
+    th {
+      background: #eee;
+      font-weight: 600;
+    }
+
+    .label {
+      font-weight: 600;
+    }
+
+    .scores-details {
+      margin-bottom: 5px;
+    }
+
+    .cpe-table-container {
+      margin-top: 16px;
+    }
+
+    .cpe-table th {
+      background: #f1f1f1;
+    }
+
+    .cpe-table td {
+      text-align: left;
+    }
+  </style>
 </head>
 <body>
-    <h2>Details for {{ cve_id }}</h2>
-    <div id="details" class="cve-details">Loading...</div>
+  <div id="details">Loading...</div>
 
-    <script>
-        async function loadDetails() {
-            const response = await fetch(`/api/cves?id={{ cve_id }}`);
-            const data = await response.json();
+  <script>
+    async function loadDetails() {
+      // Replace '{{ cve_id }}' with server-side rendering or dynamic value
+      const cve_id = "{{ cve_id }}";
 
-            if (data.length > 0) {
-                const cve = data[0];
-                document.getElementById("details").innerHTML = `
-                    <p><b>ID:</b> ${cve.id}</p>
-                    <p><b>Published:</b> ${cve.published || 'N/A'}</p>
-                    <p><b>Last Modified:</b> ${cve.lastModified || 'N/A'}</p>
-                    <p><b>Score:</b> ${cve.cvss_score ?? 'N/A'}</p>
-                    <p><b>Description:</b> ${cve.description || 'No description available.'}</p>
-                    <p><b>Mitigation:</b> ${cve.mitigation || 'No mitigation available.'}</p>
-                `;
-            } else {
-                document.getElementById("details").innerHTML =
-                    "<p>No details found for this CVE.</p>";
-            }
+      // FIX: use backticks for string interpolation
+      const response = await fetch(`/api/cves?id=${cve_id}`);
+      const data = await response.json();
+
+      if (data.length > 0) {
+        const cve = data[0];
+
+        // CVSS section (v2 example)
+        let cvss = cve.cvss || {};
+        const vectorString = cvss.vectorString || "N/A";
+        const av = cvss.accessVector || "N/A";
+        const ac = cvss.accessComplexity || "N/A";
+        const au = cvss.authentication || "N/A";
+        const ci = cvss.confidentialityImpact || "N/A";
+        const ii = cvss.integrityImpact || "N/A";
+        const ai = cvss.availabilityImpact || "N/A";
+        const severity = cvss.severity || "N/A";
+        const score = cvss.score ?? "N/A";
+
+        // Scores (exploit/impact)
+        const exploitScore = cve.exploitabilityScore ?? "N/A";
+        const impactScore = cve.impactScore ?? "N/A";
+
+        // CPEs
+        let cpeRows = "";
+        if (Array.isArray(cve.cpes) && cve.cpes.length > 0) {
+          cve.cpes.forEach(cpeObj => {
+            cpeRows += `
+              <tr>
+                <td>${cpeObj.criteria || ""}</td>
+                <td>${cpeObj.matchCriteriaId || ""}</td>
+                <td>${cpeObj.vulnerable === true || cpeObj.vulnerable === "Yes" ? "Yes" : "No"}</td>
+              </tr>
+            `;
+          });
         }
 
-        window.onload = loadDetails;
-    </script>
+        document.getElementById("details").innerHTML = `
+          <h2>${cve.id || cve_id}</h2>
+
+          <div class="desc-title">Description:</div>
+          <div class="desc-content">${cve.description || "No description available."}</div>
+		  <p><b>Mitigation:</b> ${cve.mitigation || 'No mitigation available.'}</p>
+          <div class="section-title">CVSS V2 Metrics:</div>
+          <div class="metrics-details">
+            <span class="label">Severity:</span> ${severity}
+            <span class="label">Score:</span> ${score}
+          </div>
+
+          <div class="vector-string">
+            <span class="label">Vector String: </span> ${vectorString}
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Access Vector</th>
+                <th>Access Complexity</th>
+                <th>Authentication</th>
+                <th>Confidentiality Impact</th>
+                <th>Integrity Impact</th>
+                <th>Availability Impact</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>${av}</td>
+                <td>${ac}</td>
+                <td>${au}</td>
+                <td>${ci}</td>
+                <td>${ii}</td>
+                <td>${ai}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="section-title">Scores :</div>
+          <div class="scores-details">
+            <span class="label">Exploitability Score:</span> ${exploitScore}
+            <span class="label">Impact Score:</span> ${impactScore}
+          </div>
+
+          <div class="section-title">CPE:</div>
+          <div class="cpe-table-container">
+            <table class="cpe-table">
+              <thead>
+                <tr>
+                  <th>Criteria</th>
+                  <th>Match Criteria ID</th>
+                  <th>Vulnerable</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${cpeRows || "<tr><td colspan='3'>No CPE data available.</td></tr>"}
+              </tbody>
+            </table>
+          </div>
+        `;
+      } else {
+        document.getElementById("details").innerHTML = "<p>No details found for this CVE.</p>";
+      }
+    }
+
+    window.onload = loadDetails;
+  </script>
 </body>
 </html>
-
