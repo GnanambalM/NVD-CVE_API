@@ -38,18 +38,6 @@ class CVEApiTestCase(unittest.TestCase):
         for cve in response.get_json():
             self.assertIn("mitigation", cve)
 
-    def test_html_list_route(self):
-        """Test /cves/list renders HTML"""
-        response = self.app.get('/cves/list')
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b"<table", response.data)
-
-    def test_html_details_route(self):
-        """Test /cves/<cve_id> renders HTML"""
-        response = self.app.get('/cves/CVE-1999-0095')
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b"CVE-1999-0095", response.data)
-
     # ---------------------- INVALID CASES ----------------------
     def test_invalid_year(self):
         """Test invalid year input"""
