@@ -3,6 +3,8 @@ import requests
 import sqlite3
 import threading
 import time
+import re
+from datetime import datetime
 
 app = Flask(__name__)
 DB_NAME = "cves.db"
@@ -41,7 +43,7 @@ def fetch_and_store_cves():
         cursor = conn.cursor()
         for item in cves:
             cve_id = item["cve"]["id"]
-            if not cve_id.startswith("CVE-"):
+            if not re.match(r"^CVE-\d{4}-\d{4,}$", cve_id):
                 continue
             published = item["cve"].get("published")
             modified = item["cve"].get("lastModified")
@@ -54,7 +56,12 @@ def fetch_and_store_cves():
                 score = metrics["cvssMetricV3"][0]["cvssData"]["baseScore"]
             elif "cvssMetricV2" in metrics:
                 score = metrics["cvssMetricV2"][0]["cvssData"]["baseScore"]
-            score = float(score) if score is not None else None
+            try:
+                score = float(score) if score is not None else None
+                if score is not None and (score < 0 or score > 10):
+                    score = None
+            except (ValueError, TypeError):
+                score = None
             cursor.execute("""
                 INSERT OR REPLACE INTO cves (id, published, lastModified, description, cvss_score)
                 VALUES (?, ?, ?, ?, ?)
@@ -81,14 +88,24 @@ def get_cves():
     query = "SELECT * FROM cves WHERE 1=1"
     params = []
     if cve_id:
+        if not re.match(r"^CVE-\d{4}-\d{4,}$", cve_id):
+            return jsonify({"error": "Invalid CVE ID format"}), 400
         query += " AND id = ?"
         params.append(cve_id)
     if year:
+        if not year.isdigit() or not (1999 <= int(year) <= datetime.now().year):
+            return jsonify({"error": "Invalid year"}), 400
         query += " AND published LIKE ?"
         params.append(f"{year}%")
     if score:
+        try:
+            score = float(score)
+            if score < 0 or score > 10:
+                return jsonify({"error": "Invalid score"}), 400
+        except ValueError:
+            return jsonify({"error": "Score must be a number"}), 400
         query += " AND cvss_score >= ?"
-        params.append(float(score))
+        params.append(score)
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute(query, params)
@@ -116,4 +133,4 @@ def cve_details(cve_id):
 if __name__ == "__main__":
     init_db()
     threading.Thread(target=periodic_sync, daemon=True).start()
-    app.run(debug=True, use_reloader=False) # use_reloader=False)
+    app.run(debug=True, use_reloader=False) # use_reloader=False
