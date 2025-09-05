@@ -2,27 +2,40 @@
 <html>
 <head>
     <title>CVE Details</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .cve-details { border: 1px solid #ddd; padding: 15px; border-radius: 8px; background: #f9f9f9; }
+        .cve-details p { margin: 8px 0; }
+        .cve-details b { color: #333; }
+    </style>
 </head>
 <body>
     <h2>Details for {{ cve_id }}</h2>
-    <div id="details"></div>
+    <div id="details" class="cve-details">Loading...</div>
 
     <script>
         async function loadDetails() {
             const response = await fetch(`/api/cves?id={{ cve_id }}`);
             const data = await response.json();
+
             if (data.length > 0) {
                 const cve = data[0];
                 document.getElementById("details").innerHTML = `
                     <p><b>ID:</b> ${cve.id}</p>
-                    <p><b>Published:</b> ${cve.published}</p>
-                    <p><b>Last Modified:</b> ${cve.lastModified}</p>
-                    <p><b>Score:</b> ${cve.cvss_score || ''}</p>
-                    <p><b>Description:</b> ${cve.description}</p>
+                    <p><b>Published:</b> ${cve.published || 'N/A'}</p>
+                    <p><b>Last Modified:</b> ${cve.lastModified || 'N/A'}</p>
+                    <p><b>Score:</b> ${cve.cvss_score ?? 'N/A'}</p>
+                    <p><b>Description:</b> ${cve.description || 'No description available.'}</p>
+                    <p><b>Mitigation:</b> ${cve.mitigation || 'No mitigation available.'}</p>
                 `;
+            } else {
+                document.getElementById("details").innerHTML =
+                    "<p>No details found for this CVE.</p>";
             }
         }
+
         window.onload = loadDetails;
     </script>
 </body>
 </html>
+
