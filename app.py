@@ -20,7 +20,27 @@ def init_db():
             published TEXT,
             lastModified TEXT,
             description TEXT,
-            cvss_score REAL
+            cvss_score REAL,
+            status TEXT,
+            severity TEXT,
+            vector TEXT,
+            access_vector TEXT,
+            access_complexity TEXT,
+            authentication TEXT,
+            confidentiality TEXT,
+            integrity TEXT,
+            availability TEXT,
+            exploitability_score REAL,
+            impact_score REAL
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS cpe (
+            cve_id TEXT,
+            criteria TEXT,
+            matchCriteriaId TEXT,
+            vulnerable TEXT,
+            FOREIGN KEY (cve_id) REFERENCES cves(id)
         )
     """)
     conn.commit()
@@ -49,13 +69,28 @@ def fetch_and_store_cves():
             modified = item["cve"].get("lastModified")
             published = published.split("T")[0] if published else None
             modified = modified.split("T")[0] if modified else None
-            description = item["cve"]["descriptions"][0]["value"] if item["cve"].get("descriptions") else ""
+            description = item["cve"].get("descriptions", [{}])[0].get("value", "")
+            status = item["cve"].get("vulnStatus", "Unknown")
+            severity = vector = access_vector = access_complexity = authentication = ""
+            confidentiality = integrity = availability = ""
+            exploitability_score = impact_score = None
             score = None
             metrics = item["cve"].get("metrics", {})
             if "cvssMetricV3" in metrics:
-                score = metrics["cvssMetricV3"][0]["cvssData"]["baseScore"]
+                score = metrics["cvssMetricV3"][0]["cvssData"].get("baseScore")
             elif "cvssMetricV2" in metrics:
-                score = metrics["cvssMetricV2"][0]["cvssData"]["baseScore"]
+                v2 = metrics["cvssMetricV2"][0]["cvssData"]
+                score = v2.get("baseScore")
+                severity = v2.get("severity")
+                vector = v2.get("vectorString")
+                access_vector = v2.get("accessVector")
+                access_complexity = v2.get("accessComplexity")
+                authentication = v2.get("authentication")
+                confidentiality = v2.get("confidentialityImpact")
+                integrity = v2.get("integrityImpact")
+                availability = v2.get("availabilityImpact")
+                exploitability_score = v2.get("exploitabilityScore")
+                impact_score = v2.get("impactScore")
             try:
                 score = float(score) if score is not None else None
                 if score is not None and (score < 0 or score > 10):
@@ -63,9 +98,28 @@ def fetch_and_store_cves():
             except (ValueError, TypeError):
                 score = None
             cursor.execute("""
-                INSERT OR REPLACE INTO cves (id, published, lastModified, description, cvss_score)
-                VALUES (?, ?, ?, ?, ?)
-            """, (cve_id, published, modified, description, score))
+                INSERT OR REPLACE INTO cves (
+                    id, published, lastModified, description, cvss_score, status,
+                    severity, vector, access_vector, access_complexity, authentication,
+                    confidentiality, integrity, availability, exploitability_score, impact_score
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                cve_id, published, modified, description, score, status,
+                severity, vector, access_vector, access_complexity, authentication,
+                confidentiality, integrity, availability, exploitability_score, impact_score
+            ))
+            cursor.execute("DELETE FROM cpe WHERE cve_id = ?", (cve_id,))
+            configs = item["cve"].get("configurations", [])
+            for config in configs:
+                for node in config.get("nodes", []):
+                    for match in node.get("cpeMatch", []):
+                        criteria = match.get("criteria")
+                        match_id = match.get("matchCriteriaId")
+                        vulnerable = "Yes" if match.get("vulnerable") else "No"
+                        cursor.execute("""
+                            INSERT INTO cpe (cve_id, criteria, matchCriteriaId, vulnerable)
+                            VALUES (?, ?, ?, ?)
+                        """, (cve_id, criteria, match_id, vulnerable))
         conn.commit()
         conn.close()
         start_index += results_per_page
@@ -79,7 +133,6 @@ def periodic_sync(interval=86400):
 # Mitigation Suggestion
 def suggest_mitigation(description, score):
     desc = (description or "").lower()
-    # Rule-based patterns
     if "sql injection" in desc:
         return "Use parameterized queries, ORM frameworks, and strict input validation."
     elif "buffer overflow" in desc:
@@ -137,15 +190,36 @@ def get_cves():
     cursor = conn.cursor()
     cursor.execute(query, params)
     rows = cursor.fetchall()
+    results = []
+    for r in rows:
+        cursor.execute("SELECT criteria, matchCriteriaId, vulnerable FROM cpe WHERE cve_id = ?", (r[0],))
+        cpe_rows = cursor.fetchall()
+        cpes = [{"criteria": c[0], "matchCriteriaId": c[1], "vulnerable": c[2]} for c in cpe_rows]
+        results.append({
+            "id": r[0],
+            "published": r[1],
+            "lastModified": r[2],
+            "description": r[3],
+            "cvss_score": r[4],
+            "status": r[5],
+            "identifier": "cve@mitre.org",
+            "mitigation": suggest_mitigation(r[3], r[4]),
+            "exploitabilityScore": r[14],
+            "impactScore": r[15],
+            "cvss": {
+                "severity": r[6],
+                "vectorString": r[7],
+                "accessVector": r[8],
+                "accessComplexity": r[9],
+                "authentication": r[10],
+                "confidentialityImpact": r[11],
+                "integrityImpact": r[12],
+                "availabilityImpact": r[13],
+                "score": r[4]
+            },
+            "cpes": cpes
+        })
     conn.close()
-    results = [{
-        "id": r[0],
-        "published": r[1],
-        "lastModified": r[2],
-        "description": r[3],
-        "cvss_score": r[4],
-        "mitigation": suggest_mitigation(r[3], r[4])
-    } for r in rows]
     return jsonify(results)
 
 @app.route("/cves/list")
@@ -154,10 +228,52 @@ def cves_list():
 
 @app.route("/cves/<cve_id>")
 def cve_details(cve_id):
-    return render_template("details.html", cve_id=cve_id)
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM cves WHERE id = ?", (cve_id,))
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        return "CVE not found", 404
+    cursor.execute("SELECT criteria, matchCriteriaId, vulnerable FROM cpe WHERE cve_id = ?", (cve_id,))
+    cpe_rows = cursor.fetchall()
+    cpes = [{"criteria": r[0], "matchCriteriaId": r[1], "vulnerable": r[2]} for r in cpe_rows]
+    cve_data = {
+        "id": row[0],
+        "published": row[1],
+        "lastModified": row[2],
+        "description": row[3],
+        "cvss_score": row[4],
+        "status": row[5],
+        "severity": row[6],
+        "vector": row[7],
+        "access_vector": row[8],
+        "access_complexity": row[9],
+        "authentication": row[10],
+        "confidentiality": row[11],
+        "integrity": row[12],
+        "availability": row[13],
+        "exploitabilityScore": row[14],
+        "impactScore": row[15],
+        "mitigation": suggest_mitigation(row[3], row[4]),
+        "cvss": {
+            "severity": row[6],
+            "vectorString": row[7],
+            "accessVector": row[8],
+            "accessComplexity": row[9],
+            "authentication": row[10],
+            "confidentialityImpact": row[11],
+            "integrityImpact": row[12],
+            "availabilityImpact": row[13],
+            "score": row[4]
+        },
+        "cpes": cpes
+    }
+    conn.close()
+    return render_template("details.html", cve=cve_data)
 
 # Main
 if __name__ == "__main__":
     init_db()
     threading.Thread(target=periodic_sync, daemon=True).start()
-    app.run(debug=True, use_reloader=False) # use_reloader=False
+    app.run(debug=True, use_reloader=False)
