@@ -51,5 +51,6 @@ API: http://127.0.0.1:5000/api/cves
 List View: http://127.0.0.1:5000/cves/list
 
 Running Tests
+```bash
 python -m unittest discover -s tests -p "test_*.py"
 GitHub Actions workflow (.github/workflows/test.yml) automatically runs these tests on every push.
