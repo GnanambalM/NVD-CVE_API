@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CVE Details</title>
+</head>
+<body>
+    <h2>Details for {{ cve_id }}</h2>
+    <div id="details"></div>
+
+    <script>
+        async function loadDetails() {
+            const response = await fetch(`/api/cves?id={{ cve_id }}`);
+            const data = await response.json();
+            if (data.length > 0) {
+                const cve = data[0];
+                document.getElementById("details").innerHTML = `
+                    <p><b>ID:</b> ${cve.id}</p>
+                    <p><b>Published:</b> ${cve.published}</p>
+                    <p><b>Last Modified:</b> ${cve.lastModified}</p>
+                    <p><b>Score:</b> ${cve.cvss_score || ''}</p>
+                    <p><b>Description:</b> ${cve.description}</p>
+                `;
+            }
+        }
+        window.onload = loadDetails;
+    </script>
+</body>
+</html>
