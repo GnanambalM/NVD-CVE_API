@@ -44,7 +44,7 @@ class CVEApiTestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"<table", response.data)
 
-def test_html_details_route(self):
+    def test_html_details_route(self):
         """Test /cves/<cve_id> renders HTML"""
         response = self.app.get('/cves/CVE-1999-0095')
         self.assertEqual(response.status_code, 200)
