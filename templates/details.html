@@ -101,17 +101,14 @@
 
   <script>
     async function loadDetails() {
-      // Replace '{{ cve_id }}' with server-side rendering or dynamic value
-      const cve_id = "{{ cve_id }}";
+      const cve_id = window.location.pathname.split("/").pop();
 
-      // FIX: use backticks for string interpolation
       const response = await fetch(`/api/cves?id=${cve_id}`);
       const data = await response.json();
 
       if (data.length > 0) {
         const cve = data[0];
 
-        // CVSS section (v2 example)
         let cvss = cve.cvss || {};
         const vectorString = cvss.vectorString || "N/A";
         const av = cvss.accessVector || "N/A";
@@ -122,12 +119,9 @@
         const ai = cvss.availabilityImpact || "N/A";
         const severity = cvss.severity || "N/A";
         const score = cvss.score ?? "N/A";
-
-        // Scores (exploit/impact)
         const exploitScore = cve.exploitabilityScore ?? "N/A";
         const impactScore = cve.impactScore ?? "N/A";
 
-        // CPEs
         let cpeRows = "";
         if (Array.isArray(cve.cpes) && cve.cpes.length > 0) {
           cve.cpes.forEach(cpeObj => {
@@ -143,20 +137,15 @@
 
         document.getElementById("details").innerHTML = `
           <h2>${cve.id || cve_id}</h2>
-
           <div class="desc-title">Description:</div>
           <div class="desc-content">${cve.description || "No description available."}</div>
-		  <p><b>Mitigation:</b> ${cve.mitigation || 'No mitigation available.'}</p>
+          <p><b>Mitigation:</b> ${cve.mitigation || "No mitigation available."}</p>
           <div class="section-title">CVSS V2 Metrics:</div>
           <div class="metrics-details">
             <span class="label">Severity:</span> ${severity}
             <span class="label">Score:</span> ${score}
           </div>
-
-          <div class="vector-string">
-            <span class="label">Vector String: </span> ${vectorString}
-          </div>
-
+          <div class="vector-string"><span class="label">Vector String:</span> ${vectorString}</div>
           <table>
             <thead>
               <tr>
@@ -179,13 +168,11 @@
               </tr>
             </tbody>
           </table>
-
           <div class="section-title">Scores :</div>
           <div class="scores-details">
             <span class="label">Exploitability Score:</span> ${exploitScore}
             <span class="label">Impact Score:</span> ${impactScore}
           </div>
-
           <div class="section-title">CPE:</div>
           <div class="cpe-table-container">
             <table class="cpe-table">
