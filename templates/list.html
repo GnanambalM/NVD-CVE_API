@@ -19,6 +19,32 @@
       margin-bottom: 0.5em;
       letter-spacing: 1px;
     }
+	
+	#filters {
+      width: 92%;
+      margin: 1em auto;
+      display: flex;
+      gap: 1em;
+      align-items: center;
+      font-size: 0.95em;
+    }
+
+    #filters input {
+      padding: 5px 8px;
+      border: 1px solid #bbb;
+      border-radius: 3px;
+      font-size: 1em;
+    }
+
+    #filters button {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 3px;
+      background: #222;
+      color: #fff;
+      font-size: 0.95em;
+      cursor: pointer;
+    }
 
     #totalRecords {
       font-weight: bold;
@@ -83,7 +109,11 @@
     #paginationControls {
       display: flex;
       align-items: center;
+	  justify-content: center;
       gap: 4px;
+	  margin: 1em auto;
+	  overflow-x: auto;
+      padding: 5px 0;
     }
 
     .page-btn,
@@ -97,6 +127,7 @@
       font-size: 1em;
       cursor: pointer;
       min-width: 32px;
+	  height: 32px;
       font-weight: 500;
       box-shadow: 0 0.5px 0.5px #eee;
       transition: background 0.18s;
@@ -136,6 +167,12 @@
 </head>
 <body>
   <h2>CVE LIST</h2>
+  <div id="filters">
+    <input type="text" id="year" placeholder="Year">
+    <input type="number" id="score" placeholder="Min Score" min="0" max="10" step="0.1">
+    <input type="text" id="cveId" placeholder="CVE ID(e.g. CVE-2023-1234)">
+    <button onclick="applyFilters()">Apply Filters</button>
+  </div>
   <div id="totalRecords"></div>
 
   <table id="cveTable">
@@ -146,6 +183,7 @@
         <th>PUBLISHED DATE</th>
         <th>LAST MODIFIED DATE</th>
         <th>STATUS</th>
+        <th>SCORE</th>
       </tr>
     </thead>
     <tbody>
@@ -164,139 +202,10 @@
       </select>
     </div>
 
-    <div id="paginationControls">
-      <!-- Arrow/page buttons populated by JS -->
-    </div>
-
+    <div id="paginationControls"></div>
     <div id="pageRange"></div>
   </div>
 
-  <script>
-    let cveData = [];
-    let currentPage = 1;
-    let totalPages = 1;
-
-    // Sample fetch (replace with real API)
-    async function fetchCVEs() {
-      // Replace '/api/cves' with your actual API endpoint
-      const response = await fetch('/api/cves');
-      if (!response.ok) throw new Error('Cannot fetch CVEs');
-      cveData = await response.json();
-    }
-
-    function formatDate(dateStr) {
-      if (!dateStr) return '';
-      const date = new Date(dateStr);
-      if (isNaN(date.getTime())) return dateStr;
-
-      const day = date.getDate().toString().padStart(2, '0');
-      const month = date.toLocaleString('en-US', { month: 'short' });
-      const year = date.getFullYear().toString();
-
-      return `${day} ${month} ${year}`;
-    }
-
-    function renderTable() {
-      const perPage = parseInt(document.getElementById("perPage").value, 10) || 10;
-      totalPages = Math.ceil(cveData.length / perPage) || 1;
-
-      const tbody = document.querySelector("#cveTable tbody");
-      tbody.innerHTML = "";
-
-      const start = (currentPage - 1) * perPage;
-      const end = Math.min(start + perPage, cveData.length);
-      const pageData = cveData.slice(start, end);
-
-      pageData.forEach(cve => {
-        const row = document.createElement("tr");
-        row.innerHTML = `
-          <td><a href="/cves/${cve.id}" style="color:#222;text-decoration:underline;">${cve.id}</a></td>
-          <td>${cve.identifier || 'cve@mitre.org'}</td>
-          <td>${formatDate(cve.published)}</td>
-          <td>${formatDate(cve.lastModified)}</td>
-          <td>${cve.status || ''}</td>
-        `;
-        tbody.appendChild(row);
-      });
-
-      document.getElementById("totalRecords").innerText =
-        `Total Records: ${cveData.length}`;
-
-      renderPagination(perPage, start, end);
-    }
-
-    function renderPagination(perPage, start, end) {
-      const controls = document.getElementById('paginationControls');
-      controls.innerHTML = '';
-      totalPages = Math.ceil(cveData.length / perPage) || 1;
-
-      const maxPageDisplay = 5; // Show up to 5 numbered buttons
-
-      // Left arrow
-      const leftBtn = document.createElement('button');
-      leftBtn.className = 'arrow-btn';
-      leftBtn.innerHTML = '&#9664;';
-      leftBtn.disabled = currentPage === 1;
-      leftBtn.onclick = function () {
-        if (currentPage > 1) currentPage--;
-        renderTable();
-      };
-      controls.appendChild(leftBtn);
-
-      // Page number buttons
-      let startPage = Math.max(currentPage - 2, 1);
-      let endPage = Math.min(startPage + maxPageDisplay - 1, totalPages);
-      if (endPage - startPage < maxPageDisplay - 1) {
-        startPage = Math.max(endPage - maxPageDisplay + 1, 1);
-      }
-
-      for (let i = startPage; i <= endPage; i++) {
-        const pageBtn = document.createElement('button');
-        pageBtn.className = 'page-btn' + (i === currentPage ? ' active' : '');
-        pageBtn.innerText = i;
-        pageBtn.disabled = (i === currentPage);
-        pageBtn.onclick = function () {
-          currentPage = i;
-          renderTable();
-        };
-        controls.appendChild(pageBtn);
-      }
-
-      // Right arrow
-      const rightBtn = document.createElement('button');
-      rightBtn.className = 'arrow-btn';
-      rightBtn.innerHTML = '&#9654;';
-      rightBtn.disabled = currentPage === totalPages;
-      rightBtn.onclick = function () {
-        if (currentPage < totalPages) currentPage++;
-        renderTable();
-      };
-      controls.appendChild(rightBtn);
-
-      // Record range info
-      const pageRange = document.getElementById("pageRange");
-      pageRange.innerText = `${start + 1}-${end} of ${cveData.length} records`;
-    }
-
-    async function loadCVEs() {
-      if (cveData.length === 0) {
-        try {
-          await fetchCVEs();
-        } catch (err) {
-          document.getElementById("totalRecords").innerText = "Failed to load CVEs";
-          console.error(err);
-          return;
-        }
-      }
-      renderTable();
-    }
-
-    document.getElementById("perPage").addEventListener("change", () => {
-      currentPage = 1;
-      renderTable();
-    });
-
-    window.onload = loadCVEs;
-  </script>
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>
